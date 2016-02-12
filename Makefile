@@ -1,6 +1,6 @@
-SYSCONF_LINK = g++
+SYSCONF_LINK = c++
 CPPFLAGS     =
-LDFLAGS      =
+LDFLAGS      = 
 LIBS         = -lm
 
 DESTDIR = ./
@@ -20,4 +20,3 @@ clean:
 	-rm -f $(OBJECTS)
 	-rm -f $(TARGET)
 	-rm -f *.tga
-
