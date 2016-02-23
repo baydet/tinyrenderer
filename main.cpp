@@ -45,9 +45,10 @@ void triangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor color) {
 	if (t2.y > t0.y) std::swap(t2, t0);
 	if (t2.y > t1.y) std::swap(t2, t1);
 
-	line(t0.x, t0.y, t2.x, t2.y, image, red);
-	line(t0.x, t0.y, t1.x, t1.y, image, green);
-	line(t1.x, t1.y, t2.x, t2.y, image, green);
+	//todo remove shitcode
+	if (t1.y == t2.y) return;
+	if (t0.y == t2.y) return;
+	if (t0.y == t1.y) return;
 
 	float a02 = (t0.x - t2.x) / (float) (t0.y - t2.y);
 	float a12 = (t1.x - t2.x) / (float) (t1.y - t2.y);
@@ -55,10 +56,10 @@ void triangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor color) {
 
 	for (int y = t2.y; y <= t0.y; ++y) {
 		int x0 = a02 * (y - t2.y) + t2.x;
-		int x1 = y <= t1.y ? a12 * (y - t2.y) + t2.x : a01 * (y - t1.y) + t1.x;
+		int x1 = y < t1.y ? a12 * (y - t2.y) + t2.x : a01 * (y - t1.y) + t1.x;
 		if (x0>x1) std::swap(x0, x1);
 		for (int x = x0; x < x1; ++x) {
-			image.set(x, y, white);
+			image.set(x, y, color);
 		}
 	}
 
