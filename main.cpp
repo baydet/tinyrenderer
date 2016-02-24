@@ -45,20 +45,15 @@ void triangle(Vec2i t0, Vec2i t1, Vec2i t2, TGAImage &image, TGAColor color) {
 	if (t2.y > t0.y) std::swap(t2, t0);
 	if (t2.y > t1.y) std::swap(t2, t1);
 
-	//todo remove shitcode
-	if (t1.y == t2.y) return;
-	if (t0.y == t2.y) return;
-	if (t0.y == t1.y) return;
-
-	float a02 = (t0.x - t2.x) / (float) (t0.y - t2.y);
-	float a12 = (t1.x - t2.x) / (float) (t1.y - t2.y);
-	float a01 = (t0.x - t1.x) / (float) (t0.y - t1.y);
+	float a02 = t0.y == t2.y ? 0 : (t0.x - t2.x) / (float) (t0.y - t2.y);
+	float a12 = t1.y == t2.y ? 0 : (t1.x - t2.x) / (float) (t1.y - t2.y);
+	float a01 = t0.y == t1.y ? 0 : (t0.x - t1.x) / (float) (t0.y - t1.y);
 
 	for (int y = t2.y; y <= t0.y; ++y) {
 		int x0 = a02 * (y - t2.y) + t2.x;
 		int x1 = y < t1.y ? a12 * (y - t2.y) + t2.x : a01 * (y - t1.y) + t1.x;
 		if (x0>x1) std::swap(x0, x1);
-		for (int x = x0; x < x1; ++x) {
+		for (int x = x0; x <= x1; ++x) {
 			image.set(x, y, color);
 		}
 	}
@@ -70,14 +65,22 @@ int main(int argc, char** argv) {
   model = new Model("Projects/Other/tinyrenderer/obj/african_head.obj");
 	TGAImage image(width, height, TGAImage::RGB);
 
-	for (int i=0; i<model->nfaces(); i++) {
+	Vec3f light_dir(0,0,-1);
+  for (int i=0; i<model->nfaces(); i++) {
       std::vector<int> face = model->face(i);
       Vec2i screen_coords[3];
+      Vec3f world_coords[3];
       for (int j=0; j<3; j++) {
-          Vec3f world_coords = model->vert(face[j]);
-          screen_coords[j] = Vec2i((world_coords.x+1.)*width/2., (world_coords.y+1.)*height/2.);
+          Vec3f v = model->vert(face[j]);
+          screen_coords[j] = Vec2i((v.x+1.)*width/2., (v.y+1.)*height/2.);
+          world_coords[j]  = v;
       }
-      triangle(screen_coords[0], screen_coords[1], screen_coords[2], image, TGAColor(rand()%255, rand()%255, rand()%255, 255));
+      Vec3f n = (world_coords[2]-world_coords[0])^(world_coords[1]-world_coords[0]);
+      n.normalize();
+      float intensity = n*light_dir;
+      if (intensity>0) {
+          triangle(screen_coords[0], screen_coords[1], screen_coords[2], image, TGAColor(intensity*255, intensity*255, intensity*255, 255));
+      }
   }
 
 	image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
