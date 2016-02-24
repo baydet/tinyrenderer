@@ -5,6 +5,7 @@ const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red   = TGAColor(255, 0, 0, 255);
 const TGAColor green   = TGAColor(0, 255, 0, 255);
 Model *model = NULL;
+int *zBuffer = NULL;
 
 const int width  = 800;
 const int height = 800;
@@ -65,8 +66,14 @@ void triangle(Vec3i t0, Vec3i t1, Vec3i t2, TGAImage &image, TGAColor color, int
 
 		if (A.x > B.x) std::swap(A, B);
 		for (int x = A.x; x <= B.x; ++x) {
-
-			image.set(x, t2.y + h, color);
+			Vec3i d_x = B - A;
+			float psi = d_x.x == 0 ? 1. : (x - A.x) / (float) d_x.x;
+			Vec3i P = Vec3i(A.x + d_x.x * psi, A.y, A.z + d_x.z * psi);
+			int idx = width * (P.y - 1) + P.x;
+			if (P.z > zBuffer[idx]) {
+				zBuffer[idx] = P.z;
+				image.set(P.x, P.y, color);
+			}
 		}
 	}
 
@@ -78,12 +85,10 @@ int main(int argc, char** argv) {
 	TGAImage image(width, height, TGAImage::RGB);
 
 	Vec3f light_dir(0,0,-1);
-	int *zBuffer = new int[width * height];
+	zBuffer = new int[width * height];
 	for (int i=0; i<width*height; i++) {
     zBuffer[i] = std::numeric_limits<int>::min();
   }
-
-	// triangle(Vec3i(10,20,10), Vec3i(70, 80, 20), Vec3i(35, 4, 20), image, red, zBuffer);
 
   for (int i=0; i<model->nfaces(); i++) {
       std::vector<int> face = model->face(i);
