@@ -10,6 +10,7 @@ int *zBuffer = NULL;
 const int width  = 800;
 const int height = 800;
 const int depth  = 255;
+Vec3f light_dir(0,0,-1);
 
 void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
 	bool reversed = false;
@@ -42,15 +43,27 @@ void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
 	}
 }
 
-void triangle(Vec3i t0, Vec3i t1, Vec3i t2, TGAImage &image, TGAColor color, int *zBuffer) {
+void triangle(Vec3i t0, Vec3i t1, Vec3i t2, Vec2i uv0, Vec2i uv1, Vec2i uv2, TGAImage &image, float intensity, int *zBuffer) {
 	if (t0.y == t1.y && t0.y == t2.y) return;
-	if (t1.y > t0.y) std::swap(t1, t0);
-	if (t2.y > t0.y) std::swap(t2, t0);
-	if (t2.y > t1.y) std::swap(t2, t1);
+	if (t1.y > t0.y) {
+		std::swap(t1, t0);
+		std::swap(uv1, uv0);
+	}
+	if (t2.y > t0.y) {
+		std::swap(t2, t0);
+		std::swap(uv2, uv0);
+	}
+	if (t2.y > t1.y) {
+		std::swap(t2, t1);
+		std::swap(uv2, uv1);
+	}
 
 	Vec3i v02 = t0 - t2;
 	Vec3i v12 = t1 - t2;
 	Vec3i v01 = t0 - t1;
+	Vec2i uv02 = uv0 - uv2;
+	Vec2i uv12 = uv1 - uv2;
+	Vec2i uv01 = uv0 - uv1;
 
 	int totalHeight = t0.y - t2.y;
 
@@ -58,13 +71,22 @@ void triangle(Vec3i t0, Vec3i t1, Vec3i t2, TGAImage &image, TGAColor color, int
 		bool first_half = h < v12.y;
 		float alpha = h / (float) totalHeight;
 		Vec3i A = Vec3i(t2.x + v02.x * alpha, t2.y + h, t2.z + v02.z * alpha);
+		Vec2i uvA = uv2 + uv02*alpha;
+
 		Vec3i &buf_vector = first_half ? v12 : v01;
+		Vec2i &uv_buf_vector = first_half ? uv12 : uv01;
 		Vec3i &start_vector = first_half ? t2 : t1;
+		Vec2i &uv_start_vector = first_half ? uv2 : uv1;
 		int b_h = first_half ? h : h - v12.y;
+
 		float beta = buf_vector.y == 0 ? 1 : b_h / (float) buf_vector.y;
 		Vec3i B = Vec3i(start_vector.x + buf_vector.x * beta, t2.y + h, start_vector.z + buf_vector.z * beta);
+		Vec2i uvB = uv_start_vector + uv_buf_vector * beta;
 
-		if (A.x > B.x) std::swap(A, B);
+		if (A.x > B.x) {
+			std::swap(A, B);
+			std::swap(uvA, uvB);
+		}
 		for (int x = A.x; x <= B.x; ++x) {
 			Vec3i d_x = B - A;
 			float psi = d_x.x == 0 ? 1. : (x - A.x) / (float) d_x.x;
@@ -72,7 +94,9 @@ void triangle(Vec3i t0, Vec3i t1, Vec3i t2, TGAImage &image, TGAColor color, int
 			int idx = width * (P.y - 1) + P.x;
 			if (P.z > zBuffer[idx]) {
 				zBuffer[idx] = P.z;
-				image.set(P.x, P.y, color);
+				Vec2i uvP = uvA + ((uvB - uvA) * psi);
+				TGAColor color = model->diffuse(uvP);
+				image.set(P.x, P.y, TGAColor(color.r*intensity, color.g*intensity, color.b*intensity, color.a));
 			}
 		}
 	}
@@ -81,10 +105,9 @@ void triangle(Vec3i t0, Vec3i t1, Vec3i t2, TGAImage &image, TGAColor color, int
 
 int main(int argc, char** argv) {
 
-  model = new Model("Projects/Other/tinyrenderer/obj/african_head.obj");
+  model = new Model("Projects/Other/tinyrenderer/obj/african_head/african_head.obj");
 	TGAImage image(width, height, TGAImage::RGB);
 
-	Vec3f light_dir(0,0,-1);
 	zBuffer = new int[width * height];
 	for (int i=0; i<width*height; i++) {
     zBuffer[i] = std::numeric_limits<int>::min();
@@ -102,8 +125,12 @@ int main(int argc, char** argv) {
       Vec3f n = (world_coords[2]-world_coords[0])^(world_coords[1]-world_coords[0]);
       n.normalize();
       float intensity = n*light_dir;
-      if (intensity>0) {
-          triangle(screen_coords[0], screen_coords[1], screen_coords[2], image, TGAColor(intensity*255, intensity*255, intensity*255, 255), zBuffer);
+			if (intensity>0) {
+          Vec2i uv[3];
+          for (int k=0; k<3; k++) {
+              uv[k] = model->uv(i, k);
+          }
+          triangle(screen_coords[0], screen_coords[1], screen_coords[2], uv[0], uv[1], uv[2], image, intensity, zBuffer);
       }
   }
 
